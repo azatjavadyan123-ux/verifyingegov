@@ -1,169 +1,134 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>CAT Tracker · Dashboard</title>
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',sans-serif; }
-    body { background:#0b1120; color:#e2e8f0; padding:2rem; }
-    .container { max-width:1400px; margin:0 auto; }
-    h1 { font-weight:300; margin-bottom:0.5rem; }
-    .sub { color:#94a3b8; margin-bottom:2rem; }
-    .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1rem; margin-bottom:2rem; }
-    .stat-box { background:#1e293b; padding:1.2rem; border-radius:1rem; text-align:center; }
-    .stat-box .num { font-size:2.5rem; font-weight:700; color:#38bdf8; }
-    .stat-box .label { color:#94a3b8; font-size:0.8rem; margin-top:0.3rem; }
-    #loginOverlay { position:fixed; inset:0; background:#0b1120; display:flex; align-items:center; justify-content:center; z-index:999; }
-    #loginOverlay.hidden { display:none; }
-    #loginBox { background:#1e293b; padding:2.5rem; border-radius:1.5rem; width:350px; }
-    #loginBox h2 { margin-bottom:1.5rem; }
-    #loginBox input { width:100%; padding:0.8rem; border-radius:0.8rem; border:1px solid #334155; background:#0f172a; color:#fff; font-size:1rem; margin-bottom:1rem; }
-    #loginBox button { width:100%; padding:0.8rem; background:#2563eb; border:none; border-radius:0.8rem; color:#fff; font-weight:700; cursor:pointer; }
-    #loginBox .error { color:#ef4444; margin-top:0.5rem; display:none; }
-    .table-wrap { background:#1e293b; border-radius:1rem; overflow:auto; max-height:500px; }
-    table { width:100%; border-collapse:collapse; font-size:0.85rem; }
-    th { background:#0f172a; padding:0.8rem; text-align:left; position:sticky; top:0; }
-    td { padding:0.7rem 0.8rem; border-bottom:1px solid #334155; }
-    .actions { display:flex; gap:0.8rem; margin-bottom:1.5rem; flex-wrap:wrap; }
-    .actions button { background:#1e293b; border:1px solid #334155; color:#e2e8f0; padding:0.6rem 1.2rem; border-radius:0.8rem; cursor:pointer; }
-    .actions button:hover { background:#334155; }
-    .badge { display:inline-block; padding:0.15rem 0.6rem; border-radius:1rem; font-size:0.7rem; background:#1e3a5f; }
-    .live-dot { display:inline-block; width:8px; height:8px; background:#22c55e; border-radius:50%; margin-right:6px; animation:pulse 1.5s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard · GPS Tracker</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; font-family:system-ui,sans-serif; }
+        body { background:#0b1120; color:#e2e8f0; padding:2rem; }
+        .container { max-width:1200px; margin:0 auto; }
+        h1 { font-weight:300; }
+        .sub { color:#94a3b8; margin:0.5rem 0 2rem; }
+        #loginOverlay { position:fixed; inset:0; background:#0b1120; display:flex; align-items:center; justify-content:center; z-index:999; }
+        #loginOverlay.hidden { display:none; }
+        #loginBox { background:#1e293b; padding:2.5rem; border-radius:1.5rem; width:350px; }
+        #loginBox h2 { margin-bottom:1.5rem; }
+        #loginBox input { width:100%; padding:0.8rem; border-radius:0.8rem; border:1px solid #334155; background:#0f172a; color:#fff; font-size:1rem; margin-bottom:1rem; }
+        #loginBox button { width:100%; padding:0.8rem; background:#2563eb; border:none; border-radius:0.8rem; color:#fff; font-weight:700; cursor:pointer; }
+        #loginBox .error { color:#ef4444; margin-top:0.5rem; display:none; }
+        .log-entry { background:#1e293b; padding:1rem; border-radius:0.5rem; margin-bottom:0.5rem; border-left:3px solid #2563eb; }
+        .log-entry .ip { color:#38bdf8; font-weight:600; }
+        .log-entry .time { color:#94a3b8; font-size:0.8rem; }
+        .log-entry .gps { color:#22c55e; font-weight:600; }
+        .log-entry .gps-link { color:#22c55e; text-decoration:underline; cursor:pointer; font-size:0.8rem; }
+        .log-entry .gps-link:hover { color:#4ade80; }
+        .badge-gps { display:inline-block; background:#1e3a2f; color:#22c55e; padding:0.1rem 0.5rem; border-radius:1rem; font-size:0.6rem; }
+        .badge-ip { display:inline-block; background:#1e3a5f; color:#38bdf8; padding:0.1rem 0.5rem; border-radius:1rem; font-size:0.6rem; }
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+        .stat-box { background:#1e293b; padding:0.8rem; border-radius:0.5rem; text-align:center; }
+        .stat-box .num { font-size:1.8rem; font-weight:700; color:#38bdf8; }
+        .stat-box .label { color:#94a3b8; font-size:0.7rem; }
+        .empty { color:#64748b; text-align:center; padding:2rem; }
+        .refresh-btn { background:#1e293b; border:1px solid #334155; color:#e2e8f0; padding:0.5rem 1.2rem; border-radius:0.5rem; cursor:pointer; margin-bottom:1rem; }
+        .refresh-btn:hover { background:#334155; }
+    </style>
 </head>
 <body>
 <div id="loginOverlay">
-  <div id="loginBox">
-    <h2>🔐 Dashboard Access</h2>
-    <input type="password" id="passInput" placeholder="Enter password">
-    <button id="loginBtn">Unlock</button>
-    <div class="error" id="loginError">Invalid password</div>
-  </div>
+    <div id="loginBox">
+        <h2>🔐 Dashboard</h2>
+        <input type="password" id="passInput" placeholder="Enter password">
+        <button id="loginBtn">Unlock</button>
+        <div class="error" id="loginError">Invalid password</div>
+    </div>
 </div>
-
 <div class="container">
-  <h1>📡 CAT Tracker · Live Monitor</h1>
-  <div class="sub"><span class="live-dot"></span> Real-time updates · <span id="visitorCount">0</span> total tracked</div>
-  
-  <div class="stats">
-    <div class="stat-box"><div class="num" id="statTotal">0</div><div class="label">Total Visitors</div></div>
-    <div class="stat-box"><div class="num" id="statCountries">0</div><div class="label">Countries</div></div>
-    <div class="stat-box"><div class="num" id="statCities">0</div><div class="label">Cities</div></div>
-    <div class="stat-box"><div class="num" id="statToday">0</div><div class="label">Today</div></div>
-  </div>
-
-  <div class="actions">
-    <button onclick="exportCSV()">⬇ Export CSV</button>
-    <button onclick="exportJSON()">⬇ Export JSON</button>
-    <button onclick="refreshData()">🔄 Refresh</button>
-  </div>
-
-  <div class="table-wrap">
-    <table>
-      <thead><tr>
-        <th>#</th><th>IP</th><th>Location</th><th>ISP</th><th>User Agent</th><th>Time</th>
-      </tr></thead>
-      <tbody id="visitorTable"></tbody>
-    </table>
-  </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h1>📡 GPS Tracker · Live Visitors</h1>
+        <button class="refresh-btn" onclick="loadVisitors()">🔄 Refresh</button>
+    </div>
+    <div class="sub">Visitors appear here in real-time with GPS coordinates</div>
+    
+    <div class="stats">
+        <div class="stat-box"><div class="num" id="statTotal">0</div><div class="label">Total</div></div>
+        <div class="stat-box"><div class="num" id="statGPS">0</div><div class="label">📍 GPS</div></div>
+        <div class="stat-box"><div class="num" id="statIP">0</div><div class="label">🖥 IP Only</div></div>
+    </div>
+    
+    <div id="visitorLog"></div>
 </div>
 
 <script>
-let isLoggedIn = false;
-const WS_URL = 'ws://localhost:3001';
-
-// ─── Login ──────────────────────────────────────────────────
 document.getElementById('loginBtn').addEventListener('click', async () => {
-  const pass = document.getElementById('passInput').value;
-  const res = await fetch('/api/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: pass })
-  });
-  const data = await res.json();
-  if (data.success) {
-    isLoggedIn = true;
-    document.getElementById('loginOverlay').classList.add('hidden');
-    loadData();
-    connectWebSocket();
-  } else {
-    document.getElementById('loginError').style.display = 'block';
-  }
-});
-
-// Enter key for login
-document.getElementById('passInput').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') document.getElementById('loginBtn').click();
-});
-
-// ─── Load Data ──────────────────────────────────────────────
-async function loadData() {
-  const res = await fetch('/api/visitors');
-  const data = await res.json();
-  renderTable(data);
-  updateStats(data);
-}
-
-function renderTable(visitors) {
-  const tbody = document.getElementById('visitorTable');
-  tbody.innerHTML = visitors.map(v => `
-    <tr>
-      <td>${v.id}</td>
-      <td><span class="badge">${v.ip}</span></td>
-      <td>${v.city}, ${v.region}<br><small style="color:#94a3b8">${v.country}</small></td>
-      <td>${v.isp}</td>
-      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${v.user_agent}</td>
-      <td>${new Date(v.timestamp).toLocaleString()}</td>
-    </tr>
-  `).join('');
-}
-
-function updateStats(data) {
-  const countries = new Set(data.map(v => v.country));
-  const cities = new Set(data.map(v => v.city));
-  const today = data.filter(v => new Date(v.timestamp).toDateString() === new Date().toDateString());
-  
-  document.getElementById('statTotal').textContent = data.length;
-  document.getElementById('statCountries').textContent = countries.size;
-  document.getElementById('statCities').textContent = cities.size;
-  document.getElementById('statToday').textContent = today.length;
-  document.getElementById('visitorCount').textContent = data.length;
-}
-
-// ─── WebSocket (Live Updates) ──────────────────────────────
-function connectWebSocket() {
-  const ws = new WebSocket(WS_URL);
-  ws.onmessage = (event) => {
-    const msg = JSON.parse(event.data);
-    if (msg.type === 'new_visitor') {
-      // Prepend new visitor to table
-      const tbody = document.getElementById('visitorTable');
-      const v = msg.data;
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td>${v.id || 'new'}</td>
-        <td><span class="badge">${v.ip}</span></td>
-        <td>${v.city}, ${v.region}<br><small style="color:#94a3b8">${v.country}</small></td>
-        <td>${v.isp}</td>
-        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${v.user_agent}</td>
-        <td>${new Date().toLocaleString()}</td>
-      `;
-      tbody.prepend(row);
-      // Update stats
-      loadData(); // simple refresh
+    const pass = document.getElementById('passInput').value;
+    const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pass })
+    });
+    const data = await res.json();
+    if (data.success) {
+        document.getElementById('loginOverlay').classList.add('hidden');
+        loadVisitors();
+        // Auto-refresh every 10 seconds
+        setInterval(loadVisitors, 10000);
+    } else {
+        document.getElementById('loginError').style.display = 'block';
     }
-  };
-  ws.onerror = () => console.log('WebSocket error — fallback to polling');
+});
+
+document.getElementById('passInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('loginBtn').click();
+});
+
+async function loadVisitors() {
+    try {
+        const res = await fetch('/api/visitors');
+        const data = await res.json();
+        
+        // Update stats
+        const total = data.length;
+        const gpsCount = data.filter(v => v.gps_lat && v.gps_lon).length;
+        const ipCount = total - gpsCount;
+        document.getElementById('statTotal').textContent = total;
+        document.getElementById('statGPS').textContent = gpsCount;
+        document.getElementById('statIP').textContent = ipCount;
+        
+        const log = document.getElementById('visitorLog');
+        if (data.length === 0) {
+            log.innerHTML = '<div class="empty">No visitors yet. Share your tracker link!</div>';
+            return;
+        }
+        
+        log.innerHTML = data.map(v => {
+            const hasGPS = v.gps_lat && v.gps_lon;
+            const mapUrl = hasGPS ? `https://www.google.com/maps?q=${v.gps_lat},${v.gps_lon}` : '#';
+            return `
+            <div class="log-entry">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <span class="ip">${v.ip}</span>
+                        <span style="margin-left:0.5rem;font-size:0.7rem;color:#94a3b8;">${new Date(v.timestamp).toLocaleString()}</span>
+                    </div>
+                    ${hasGPS ? '<span class="badge-gps">✅ GPS</span>' : '<span class="badge-ip">IP Only</span>'}
+                </div>
+                ${hasGPS ? `
+                    <div style="margin-top:0.3rem;">
+                        <span class="gps">📍 ${parseFloat(v.gps_lat).toFixed(5)}, ${parseFloat(v.gps_lon).toFixed(5)}</span>
+                        <span style="color:#64748b;font-size:0.7rem;margin-left:0.5rem;">Accuracy: ${Math.round(v.gps_accuracy)}m</span>
+                        <a href="${mapUrl}" target="_blank" class="gps-link" style="margin-left:0.5rem;">🗺️ View Map</a>
+                    </div>
+                ` : `
+                    <div style="margin-top:0.3rem;color:#64748b;font-size:0.8rem;">📍 GPS not available (user denied or not supported)</div>
+                `}
+                <div style="margin-top:0.2rem;color:#64748b;font-size:0.7rem;word-break:break-all;">${v.userAgent || 'Unknown device'}</div>
+            </div>
+        `}).join('');
+    } catch(e) {
+        console.log('Error loading visitors:', e);
+    }
 }
-
-// ─── Exports ─────────────────────────────────────────────────
-function exportCSV() { window.open('/api/export/csv'); }
-function exportJSON() { window.open('/api/export/json'); }
-function refreshData() { loadData(); }
-
-// Auto-refresh every 30s as fallback
-setInterval(refreshData, 30000);
 </script>
 </body>
 </html>
