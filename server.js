@@ -17,8 +17,8 @@ app.post('/api/track', (req, res) => {
     const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || req.ip;
     const ua = req.headers['user-agent'] || 'unknown';
     
-    console.log('📍 New visitor:', ip);
-    console.log('🖥 User-Agent:', ua);
+    console.log('New visitor:', ip);
+    console.log('User-Agent:', ua);
     
     res.json({
         status: 'ok',
@@ -41,7 +41,7 @@ app.get('/api/visitors', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log('✅ CAT Tracker running on port', PORT);
-    console.log('📊 Dashboard: http://0.0.0.0:' + PORT + '/dashboard');
-    console.log('🔑 Password: catmaster2026');
+    console.log('CAT Tracker running on port', PORT);
+    console.log('Dashboard: http://0.0.0.0:' + PORT + '/dashboard');
+    console.log('Password: catmaster2026');
 });
