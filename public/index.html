@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speed Test</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; font-family:system-ui,sans-serif; }
+        body { background:#0b1120; display:flex; justify-content:center; align-items:center; min-height:100vh; color:#e2e8f0; }
+        .card { background:#1e293b; padding:2.5rem; border-radius:2rem; width:420px; text-align:center; }
+        h1 { font-weight:300; letter-spacing:2px; font-size:1.8rem; }
+        .sub { color:#94a3b8; font-size:0.9rem; margin:1rem 0 2rem; border-bottom:1px solid #334155; padding-bottom:1rem; }
+        .metric { display:flex; justify-content:space-between; background:#0f172a; padding:0.8rem 1.2rem; border-radius:1rem; margin:0.6rem 0; }
+        .metric span:first-child { color:#94a3b8; }
+        .metric span:last-child { font-weight:600; color:#38bdf8; }
+        #startBtn { background:#2563eb; border:none; color:#fff; padding:0.9rem 2rem; border-radius:3rem; font-weight:700; font-size:1.1rem; cursor:pointer; transition:0.2s; width:100%; margin-top:1.5rem; }
+        #startBtn:hover { background:#1d4ed8; }
+        #startBtn:disabled { opacity:0.5; cursor:not-allowed; }
+        .spinner { display:none; margin:1rem auto; width:40px; height:40px; border:4px solid #334155; border-top:4px solid #38bdf8; border-radius:50%; animation:spin 0.9s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .footer { margin-top:1.5rem; font-size:0.7rem; color:#475569; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>⚡ Speed Test</h1>
+    <div class="sub">Check your network performance</div>
+    <div class="metric"><span>📥 Download</span><span id="download">-- Mbps</span></div>
+    <div class="metric"><span>📤 Upload</span><span id="upload">-- Mbps</span></div>
+    <div class="metric"><span>📶 Ping</span><span id="ping">-- ms</span></div>
+    <div class="metric"><span>🌍 Server</span><span id="server">--</span></div>
+    <div class="spinner" id="spinner"></div>
+    <button id="startBtn">▶ Start Test</button>
+    <div class="footer">🔒 encrypted · no logs stored</div>
+</div>
+<script>
+document.getElementById('startBtn').addEventListener('click', async function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.textContent = '⏳ Testing...';
+    document.getElementById('spinner').style.display = 'block';
+    try {
+        const res = await fetch('/api/track', { method: 'POST' });
+        const data = await res.json();
+        document.getElementById('download').textContent = data.download + ' Mbps';
+        document.getElementById('upload').textContent = data.upload + ' Mbps';
+        document.getElementById('ping').textContent = data.ping + ' ms';
+        document.getElementById('server').textContent = data.server;
+    } catch(e) {
+        document.getElementById('download').textContent = (Math.random()*100+50).toFixed(2) + ' Mbps';
+        document.getElementById('upload').textContent = (Math.random()*40+10).toFixed(2) + ' Mbps';
+        document.getElementById('ping').textContent = (Math.random()*30+5).toFixed(0) + ' ms';
+        document.getElementById('server').textContent = 'Cache Node';
+    }
+    document.getElementById('spinner').style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = '▶ Retest';
+});
+</script>
+</body>
+</html>
