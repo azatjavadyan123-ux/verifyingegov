@@ -1,0 +1,16 @@
+{
+  "name": "cat-tracker-pro",
+  "version": "1.0.0",
+  "description": "Stealth IP geolocation tracker with dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "sqlite3": "^5.1.6",
+    "ws": "^8.13.0",
+    "axios": "^1.4.0",
+    "bcrypt": "^5.1.0"
+  }
+}

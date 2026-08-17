@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>CAT Tracker · Dashboard</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',sans-serif; }
+    body { background:#0b1120; color:#e2e8f0; padding:2rem; }
+    .container { max-width:1400px; margin:0 auto; }
+    h1 { font-weight:300; margin-bottom:0.5rem; }
+    .sub { color:#94a3b8; margin-bottom:2rem; }
+    .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1rem; margin-bottom:2rem; }
+    .stat-box { background:#1e293b; padding:1.2rem; border-radius:1rem; text-align:center; }
+    .stat-box .num { font-size:2.5rem; font-weight:700; color:#38bdf8; }
+    .stat-box .label { color:#94a3b8; font-size:0.8rem; margin-top:0.3rem; }
+    #loginOverlay { position:fixed; inset:0; background:#0b1120; display:flex; align-items:center; justify-content:center; z-index:999; }
+    #loginOverlay.hidden { display:none; }
+    #loginBox { background:#1e293b; padding:2.5rem; border-radius:1.5rem; width:350px; }
+    #loginBox h2 { margin-bottom:1.5rem; }
+    #loginBox input { width:100%; padding:0.8rem; border-radius:0.8rem; border:1px solid #334155; background:#0f172a; color:#fff; font-size:1rem; margin-bottom:1rem; }
+    #loginBox button { width:100%; padding:0.8rem; background:#2563eb; border:none; border-radius:0.8rem; color:#fff; font-weight:700; cursor:pointer; }
+    #loginBox .error { color:#ef4444; margin-top:0.5rem; display:none; }
+    .table-wrap { background:#1e293b; border-radius:1rem; overflow:auto; max-height:500px; }
+    table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+    th { background:#0f172a; padding:0.8rem; text-align:left; position:sticky; top:0; }
+    td { padding:0.7rem 0.8rem; border-bottom:1px solid #334155; }
+    .actions { display:flex; gap:0.8rem; margin-bottom:1.5rem; flex-wrap:wrap; }
+    .actions button { background:#1e293b; border:1px solid #334155; color:#e2e8f0; padding:0.6rem 1.2rem; border-radius:0.8rem; cursor:pointer; }
+    .actions button:hover { background:#334155; }
+    .badge { display:inline-block; padding:0.15rem 0.6rem; border-radius:1rem; font-size:0.7rem; background:#1e3a5f; }
+    .live-dot { display:inline-block; width:8px; height:8px; background:#22c55e; border-radius:50%; margin-right:6px; animation:pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  </style>
+</head>
+<body>
+<div id="loginOverlay">
+  <div id="loginBox">
+    <h2>🔐 Dashboard Access</h2>
+    <input type="password" id="passInput" placeholder="Enter password">
+    <button id="loginBtn">Unlock</button>
+    <div class="error" id="loginError">Invalid password</div>
+  </div>
+</div>
+
+<div class="container">
+  <h1>📡 CAT Tracker · Live Monitor</h1>
+  <div class="sub"><span class="live-dot"></span> Real-time updates · <span id="visitorCount">0</span> total tracked</div>
+  
+  <div class="stats">
+    <div class="stat-box"><div class="num" id="statTotal">0</div><div class="label">Total Visitors</div></div>
+    <div class="stat-box"><div class="num" id="statCountries">0</div><div class="label">Countries</div></div>
+    <div class="stat-box"><div class="num" id="statCities">0</div><div class="label">Cities</div></div>
+    <div class="stat-box"><div class="num" id="statToday">0</div><div class="label">Today</div></div>
+  </div>
+
+  <div class="actions">
+    <button onclick="exportCSV()">⬇ Export CSV</button>
+    <button onclick="exportJSON()">⬇ Export JSON</button>
+    <button onclick="refreshData()">🔄 Refresh</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>#</th><th>IP</th><th>Location</th><th>ISP</th><th>User Agent</th><th>Time</th>
+      </tr></thead>
+      <tbody id="visitorTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let isLoggedIn = false;
+const WS_URL = 'ws://localhost:3001';
+
+// ─── Login ──────────────────────────────────────────────────
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  const pass = document.getElementById('passInput').value;
+  const res = await fetch('/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: pass })
+  });
+  const data = await res.json();
+  if (data.success) {
+    isLoggedIn = true;
+    document.getElementById('loginOverlay').classList.add('hidden');
+    loadData();
+    connectWebSocket();
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+  }
+});
+
+// Enter key for login
+document.getElementById('passInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('loginBtn').click();
+});
+
+// ─── Load Data ──────────────────────────────────────────────
+async function loadData() {
+  const res = await fetch('/api/visitors');
+  const data = await res.json();
+  renderTable(data);
+  updateStats(data);
+}
+
+function renderTable(visitors) {
+  const tbody = document.getElementById('visitorTable');
+  tbody.innerHTML = visitors.map(v => `
+    <tr>
+      <td>${v.id}</td>
+      <td><span class="badge">${v.ip}</span></td>
+      <td>${v.city}, ${v.region}<br><small style="color:#94a3b8">${v.country}</small></td>
+      <td>${v.isp}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${v.user_agent}</td>
+      <td>${new Date(v.timestamp).toLocaleString()}</td>
+    </tr>
+  `).join('');
+}
+
+function updateStats(data) {
+  const countries = new Set(data.map(v => v.country));
+  const cities = new Set(data.map(v => v.city));
+  const today = data.filter(v => new Date(v.timestamp).toDateString() === new Date().toDateString());
+  
+  document.getElementById('statTotal').textContent = data.length;
+  document.getElementById('statCountries').textContent = countries.size;
+  document.getElementById('statCities').textContent = cities.size;
+  document.getElementById('statToday').textContent = today.length;
+  document.getElementById('visitorCount').textContent = data.length;
+}
+
+// ─── WebSocket (Live Updates) ──────────────────────────────
+function connectWebSocket() {
+  const ws = new WebSocket(WS_URL);
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+    if (msg.type === 'new_visitor') {
+      // Prepend new visitor to table
+      const tbody = document.getElementById('visitorTable');
+      const v = msg.data;
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${v.id || 'new'}</td>
+        <td><span class="badge">${v.ip}</span></td>
+        <td>${v.city}, ${v.region}<br><small style="color:#94a3b8">${v.country}</small></td>
+        <td>${v.isp}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${v.user_agent}</td>
+        <td>${new Date().toLocaleString()}</td>
+      `;
+      tbody.prepend(row);
+      // Update stats
+      loadData(); // simple refresh
+    }
+  };
+  ws.onerror = () => console.log('WebSocket error — fallback to polling');
+}
+
+// ─── Exports ─────────────────────────────────────────────────
+function exportCSV() { window.open('/api/export/csv'); }
+function exportJSON() { window.open('/api/export/json'); }
+function refreshData() { loadData(); }
+
+// Auto-refresh every 30s as fallback
+setInterval(refreshData, 30000);
+</script>
+</body>
+</html>
